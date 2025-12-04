@@ -97,13 +97,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function ImportMetafieldsPage() {
     const fetcher = useFetcher<{ log?: string[] }>();
     const [fileName, setFileName] = useState("");
+    const [clientError, setClientError] = useState("");
 
     const isSubmitting =
         fetcher.state === "loading" || fetcher.state === "submitting";
 
     return (
         <s-page heading="Import Product Metafields from CSV">
-            <fetcher.Form method="post" encType="multipart/form-data">
+            <fetcher.Form
+                method="post"
+                encType="multipart/form-data"
+                onSubmit={(e) => {
+                    if (!fileName) {
+                        e.preventDefault();
+                        setClientError("Please select a CSV file before uploading.");
+                    } else if (!fileName.toLowerCase().endsWith(".csv")) {
+                        e.preventDefault();
+                        setClientError("Only .csv files are allowed.");
+                    } else {
+                        setClientError("");
+                    }
+                }}
+            >
                 <s-stack direction="block" gap="base">
                     <input
                         type="file"
@@ -116,6 +131,10 @@ export default function ImportMetafieldsPage() {
                     />
 
                     {fileName && <s-text>Selected: {fileName}</s-text>}
+
+                    {clientError && (
+                        <s-badge tone="critical">{clientError}</s-badge>
+                    )}
 
                     <s-button type="submit" {...(isSubmitting ? { loading: true } : {})}>
                         Upload &amp; Create Metafields
