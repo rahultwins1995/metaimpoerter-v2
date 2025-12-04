@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "e17408270c9a62894791124dee02f36b"
+client_id = "0f43875a56726fbe13de63c8c8011441"
 name = "metaobject-v2"
 application_url = "https://metaimpoerter-v2.onrender.com"
 embedded = true
