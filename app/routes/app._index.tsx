@@ -1,11 +1,13 @@
-import { useFetcher } from "react-router";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import type {
   ActionFunctionArgs,
-  HeadersFunction, LoaderFunctionArgs
+  HeadersFunction, 
+  LoaderFunctionArgs
 } from "react-router";
-import { parse } from "csv-parse/sync";
+import { useFetcher } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { parse } from "csv-parse/sync";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 
@@ -100,6 +102,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ImportMetafieldsPage() {
   const fetcher = useFetcher<{ log?: string[] }>();
+
+  const shopify = useAppBridge();
+
   const [fileName, setFileName] = useState("");
   const [clientError, setClientError] = useState("");
 
