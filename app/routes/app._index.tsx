@@ -1,13 +1,23 @@
-import { useEffect } from "react";
+import { useFetcher } from "react-router";
+import { useState } from "react";
 import type {
   ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
+  HeadersFunction, LoaderFunctionArgs
 } from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { parse } from "csv-parse/sync";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+
+
+
+
+/** Shape of each CSV row */
+interface CSVRow {
+  Name?: string;
+  Key?: string;
+  Type?: string;
+  Description?: string;
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -15,239 +25,138 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return null;
 };
 
+/** Server side */
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
+
+  const formData = await request.formData();
+  const csv = formData.get("file") as File | null;
+
+  if (!csv) {
+    return { log: ["❌ No file uploaded"] };
+  }
+
+  const buffer = Buffer.from(await csv.arrayBuffer());
+  const rows = parse(buffer, {
+    columns: true,
+    skip_empty_lines: true,
+  }) as CSVRow[];
+
+  const finalLog: string[] = [];
+
+  for (const row of rows) {
+    const name = row.Name?.trim();
+    const key = row.Key?.trim();
+    const type = row.Type?.trim();
+    const description = row.Description?.trim() || "";
+
+    if (!name || !key || !type) {
+      finalLog.push("⚠️ Skipped row — missing name/key/type");
+      continue;
+    }
+
+    const mutation = `
+      mutation {
+        metafieldDefinitionCreate(
+          definition: {
+            name: "${name}"
+            namespace: "custom"
+            key: "${key}"
+            type: "${type}"
+            description: "${description}"
+            ownerType: PRODUCT
           }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
+        ) {
+          createdDefinition { id name key }
+          userErrors { message }
         }
       }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
+    `;
 
-  const variantResponseJson = await variantResponse.json();
+    try {
+      const resp = await admin.graphql(mutation);
+      const json = await resp.json();
 
-  return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-  };
+      const created = json.data.metafieldDefinitionCreate.createdDefinition;
+      const errors = json.data.metafieldDefinitionCreate.userErrors;
+
+      if (created) {
+        finalLog.push(`✅ Created metafield: ${name} (${key})`);
+      } else if (errors?.length) {
+        finalLog.push(
+          `⚠️ ${name} → ${errors.map((e: any) => e.message).join(", ")}`
+        );
+      } else {
+        finalLog.push(`⚠️ Unknown response for ${name}`);
+      }
+    } catch (err: any) {
+      finalLog.push(`❌ Failed for ${name} → ${err.message}`);
+    }
+  }
+
+  return { log: finalLog };
 };
 
-export default function Index() {
-  const fetcher = useFetcher<typeof action>();
 
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
+export default function ImportMetafieldsPage() {
+  const fetcher = useFetcher<{ log?: string[] }>();
+  const [fileName, setFileName] = useState("");
+  const [clientError, setClientError] = useState("");
 
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const isSubmitting =
+    fetcher.state === "loading" || fetcher.state === "submitting";
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
+    <s-page heading="Import Product Metafields from CSV">
+      <fetcher.Form
+        method="post"
+        encType="multipart/form-data"
+        onSubmit={(e) => {
+          if (!fileName) {
+            e.preventDefault();
+            setClientError("Please select a CSV file before uploading.");
+          } else if (!fileName.toLowerCase().endsWith(".csv")) {
+            e.preventDefault();
+            setClientError("Only .csv files are allowed.");
+          } else {
+            setClientError("");
+          }
+        }}
+      >
+        <s-stack direction="block" gap="base">
+          <input
+            type="file"
+            name="file"
+            accept=".csv"
+            onChange={(e) =>
+              setFileName(e.target.files?.[0]?.name ?? "")
+            }
+            style={{ marginBottom: "10px" }}
+          />
 
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references.
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
+          {fileName && <s-text>Selected: {fileName}</s-text>}
+
+          {clientError && (
+            <s-badge tone="critical">{clientError}</s-badge>
           )}
+
+          <s-button type="submit" {...(isSubmitting ? { loading: true } : {})}>
+            Upload &amp; Create Metafields
+          </s-button>
         </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
+      </fetcher.Form>
 
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-            </s-stack>
-          </s-section>
-        )}
-      </s-section>
-
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
-
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
+      {fetcher.data?.log && (
+        <s-section heading="Import Results">
+          {fetcher.data.log.map((entry, index) => (
+            <s-paragraph key={index}>{entry}</s-paragraph>
+          ))}
+        </s-section>
+      )}
     </s-page>
   );
 }
+
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
