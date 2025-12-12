@@ -1,13 +1,13 @@
-import { useState,useEffect } from "react";
+import { useFetcher } from "react-router";
+import { useState } from "react";
 import type {
   ActionFunctionArgs,
-  HeadersFunction, 
+  HeadersFunction,
   LoaderFunctionArgs
 } from "react-router";
-import { useFetcher } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
 import { parse } from "csv-parse/sync";
+import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 
@@ -43,6 +43,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     columns: true,
     skip_empty_lines: true,
   }) as CSVRow[];
+
+
+
+  const requiredHeaders = ["Name", "Key", "Type"];
+
+  const headers = Object.keys(rows[0] || {});
+  const missingHeaders = requiredHeaders.filter(
+    (h) => !headers.includes(h)
+  );
+
+  if (missingHeaders.length > 0) {
+    return {
+      log: [
+        "❌ Invalid CSV format.",
+        "This app only accepts a Metafield Definitions CSV.",
+        "Required columns:",
+        "Name, Key, Type, Description",
+        "",
+        "",
+        "",
+      ],
+    };
+  }
 
   const finalLog: string[] = [];
 
@@ -102,9 +125,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ImportMetafieldsPage() {
   const fetcher = useFetcher<{ log?: string[] }>();
-
-  const shopify = useAppBridge();
-
   const [fileName, setFileName] = useState("");
   const [clientError, setClientError] = useState("");
 
@@ -136,8 +156,18 @@ export default function ImportMetafieldsPage() {
             onChange={(e) =>
               setFileName(e.target.files?.[0]?.name ?? "")
             }
-            style={{ marginBottom: "10px" }}
+            style={{ marginBottom: "6px" }}
           />
+
+          <s-text tone="subdued">
+            <s-link
+              href="/sample-metafield-definitions.csv"
+              target="_blank"
+              rel="noopener"
+            >
+              Download a sample CSV file.
+            </s-link>
+          </s-text>
 
           {fileName && <s-text>Selected: {fileName}</s-text>}
 
@@ -149,6 +179,7 @@ export default function ImportMetafieldsPage() {
             Upload &amp; Create Metafields
           </s-button>
         </s-stack>
+
       </fetcher.Form>
 
       {fetcher.data?.log && (

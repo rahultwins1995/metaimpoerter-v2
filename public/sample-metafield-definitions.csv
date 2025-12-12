@@ -1,0 +1,8 @@
+Name,Namespace,Key,Type,Description
+Size & Fit Guide,custom,size_fit_guide,page_reference,This page content will be display as a size guide in the product page.
+Colour variant group,custom,colour_variant_group,list.product_reference,Select all the product that are of colour variant of the current product.
+Complete the Look Handles,custom,complete_the_look_handles,list.single_line_text_field,
+Custom Alert,custom,custom_alert,single_line_text_field,
+Swatch Color,custom,swatch_color,list.color,
+Swatch Products,custom,swatch_products,list.product_reference,
+Swatch Color Labels,custom,swatch_color_labels,list.single_line_text_field,
