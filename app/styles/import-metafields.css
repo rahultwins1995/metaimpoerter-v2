@@ -1,0 +1,165 @@
+ * {
+     box-sizing: border-box;
+     margin: 0px;
+     padding: 0px;
+ }
+
+ .main {
+     min-height: 100vh;
+     background: #fff;
+     display: flex;
+     flex-direction: column;
+     justify-content: space-around;
+     align-items: center;
+     padding: 124px 30px;
+     text-align: center;
+ }
+
+ h2 {
+     font-family: Anonymous Pro;
+     font-weight: 400;
+     font-style: Regular;
+     font-size: 20px;
+     leading-trim: NONE;
+     line-height: 200%;
+     letter-spacing: 0%;
+     text-align: center;
+     margin: 0;
+ }
+
+ h3 {
+     font-family: Anonymous Pro;
+     font-weight: 400;
+     font-style: Regular;
+     font-size: 20px;
+     leading-trim: NONE;
+     line-height: 200%;
+     letter-spacing: 0%;
+     text-align: center;
+     margin: 0;
+ }
+
+ .japanese-text {
+     font-family: Anonymous Pro;
+     font-weight: 400;
+     font-style: Regular;
+     font-size: 20px;
+     leading-trim: NONE;
+     line-height: 200%;
+     letter-spacing: 0%;
+     text-align: center;
+ }
+
+ .upload-btn:hover,
+ button[type="submit"]:hover {
+     opacity: .8;
+ }
+
+ .upload-btn,
+ button[type="submit"] {
+    text-decoration: none;
+     cursor: pointer;
+     font-family: Anonymous Pro;
+     font-weight: 400;
+     font-style: Regular;
+     font-size: 16px;
+     leading-trim: NONE;
+     line-height: 120%;
+     letter-spacing: 0%;
+     text-align: center;
+     vertical-align: middle;
+     height: 27px;
+     background: #FF0000;
+     color: #fff;
+     position: relative;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     text-align: center;
+     padding: 0 20px;
+     border: navajowhite;
+ }
+
+ .upload-btn input {
+     position: absolute;
+     opacity: 0;
+     width: 100%;
+     height: 100%;
+ }
+
+ form {
+     display: flex;
+     gap: 43px;
+ }
+
+ ul li a {
+     font-family: Anonymous Pro;
+     font-weight: 400;
+     font-style: Regular;
+     font-size: 20px;
+     leading-trim: NONE;
+     line-height: 200%;
+     letter-spacing: 0%;
+     color: #000;
+     text-decoration: none;
+     
+ }
+
+ ul li a:hover {
+     text-decoration: underline;
+ }
+
+ ul {
+     display: flex;
+     list-style: none;
+     gap: 43px;
+     margin: 0;
+ }
+
+ .upload-btn-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.import_results_box {
+        min-width: 500px;
+
+    border: 1px solid green;
+    text-align: left;
+    padding: 20px;
+    background-color: #00800014;  font-family: system-ui, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, Helvetica, Arial,
+               "Apple Color Emoji", "Segoe UI Emoji",
+               "Segoe UI Symbol", sans-serif;
+}
+ 
+.import_results_box h3 {
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    color: green;
+    line-height: 1;
+}
+
+.import_results_box p {
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.import_results_box.import_results_error {
+    border-color: red;
+    background-color: #ff000017;
+}
+
+.import_results_box.import_results_error h3 {
+    color: red;
+}
+
+
+
+.btn-secondary {
+  background: #f2f2f2;
+  color: #000;
+  border: 1px solid #ccc;
+}
